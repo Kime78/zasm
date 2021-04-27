@@ -5,7 +5,7 @@
 #include "assemble.h"
 
 static uint32_t PC;
-
+FILE *output;
 struct tok
 {
 	const char *tok;
@@ -54,7 +54,7 @@ static struct op_to_func opmap[] =
 		{"pop", 26, op_imm},
 		{"call", 27, op_imm},
 		{"call", 28, op_r},
-		{"cond", 29, op_imm},
+		{"cond", 30, op_r_r},
 		{NULL, 0, NULL}};
 
 static int issreg(const char *s)
@@ -80,6 +80,12 @@ static int op_imm(int i, struct tok *t)
 
 	off = strtol(t->tok, NULL, 0);
 	printf("%08X: %08X: %s 0x%X\n", PC, (off << 8) | 1, opmap[i].op, (int32_t)PC + 4 + off);
+	//fprintf(output, "%d", (off << 8) | 1);
+
+	fprintf(output, "%c", (((off << 8) | 1) >> 24) & 0xff);
+	fprintf(output, "%c", (((off << 8) | 1) >> 16) & 0xff);
+	fprintf(output, "%c", (((off << 8) | 1) >> 8) & 0xff);
+	fprintf(output, "%c", ((off << 8) | 1) & 0xff);
 
 	return 1;
 }
@@ -94,7 +100,12 @@ static int op_r(int i, struct tok *t)
 
 	printf("%08X: %08X: %s %s\n",
 		   PC, (uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2, opmap[i].op, t->tok);
+	//fprintf(output, "%d", (uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2);
 
+	fprintf(output, "%c", (((uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2) >> 24) & 0xff);
+	fprintf(output, "%c", (((uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2) >> 16) & 0xff);
+	fprintf(output, "%c", (((uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2) >> 8) & 0xff);
+	fprintf(output, "%c", ((uint32_t)(strtoul(t->tok + 1, NULL, 10) << 8) | 2) & 0xff);
 	return 1;
 }
 
@@ -111,7 +122,12 @@ static int op_imm_r(int i, struct tok *t)
 	imm = strtol(t->next->tok, NULL, 0);
 	instr = imm << 12 | strtol(t->tok + 1, NULL, 10) << 8 | opmap[i].opcode;
 	printf("%08X: %08X: %s %s, 0x%X\n", PC, instr, opmap[i].op, t->tok, imm);
+	//fprintf(output, "%d", instr);
 
+	fprintf(output, "%c", (instr >> 24) & 0xff);
+	fprintf(output, "%c", (instr >> 16) & 0xff);
+	fprintf(output, "%c", (instr >> 8) & 0xff);
+	fprintf(output, "%c", instr & 0xff);
 	return 1;
 }
 
@@ -127,6 +143,12 @@ static int op_r_r(int i, struct tok *t)
 
 	instr = strtol(t->tok + 1, NULL, 10) << 12 | strtol(t->next->tok + 1, NULL, 10) << 8 | opmap[i].opcode;
 	printf("%08X: %08X: %s %s, %s\n", PC, instr, opmap[i].op, t->tok, t->next->tok);
+	//fprintf(output, "%08X", instr);
+
+	fprintf(output, "%c", (instr >> 24) & 0xff);
+	fprintf(output, "%c", (instr >> 16) & 0xff);
+	fprintf(output, "%c", (instr >> 8) & 0xff);
+	fprintf(output, "%c", instr & 0xff);
 
 	return 1;
 }
@@ -159,6 +181,7 @@ static int open_and_parse(const char *filename)
 	f = fopen(filename, "rb");
 	if (!f)
 		return 0;
+	output = fopen("./output", "wb");
 
 	while (1)
 	{
